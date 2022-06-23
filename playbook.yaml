@@ -1,0 +1,109 @@
+-
+  name: 'user and group creation'
+  hosts: localhost
+  tasks:
+    -
+        name: 'Create a group for docker'
+        become: true
+        group:
+          name: docker
+
+    -
+        name: 'Create user with home directory'
+        become: true
+        user:
+          name: ansible_docker_user
+          comment: "Docker User Created By Ansible"
+          password: "{{ 'password' | password_hash('sha512', 'mysecretpass') }}"
+          update_password: "on_create"
+          groups:
+            - docker
+            - users
+          state: "present"
+          shell: "/bin/bash"
+          system: false
+          create_home: true
+          home: "/home/ansible_docker_user"
+          generate_ssh_key: true
+
+-
+  name: 'Install docker'
+  hosts: localhost
+  become: true
+  tasks:
+
+  #install docker for os family Debian, Ubuntu etc.
+    -
+        name: 'Install required system packages'
+#        become: True
+        apt:
+          pkg:
+            - apt-transport-https
+            - ca-certificates
+            - curl
+            - gnupg      #-agent
+            - gpg-agent
+            - lsb-release
+            - software-properties-common
+            - python3-pip
+          #  - virtualenv
+            - python3-setuptools
+          state: latest
+          update_cache: yes
+
+    -   name: 'istall docker with pip3'
+        pip:
+          name: docker
+
+    -  name: check distro
+       shell: "echo $(lsb_release -cs)"
+       register: distro_version
+
+    -   name: add GPG key
+        apt_key:
+          url: https://download.docker.com/linux/ubuntu/gpg
+          state: present
+
+    -   name: add docker repository
+#        become: true
+        apt_repository:
+           repo: deb https://download.docker.com/linux/ubuntu {{ansible_distribution_release}} stable
+           state: present
+
+    -   name: install docker
+#        become: true
+        apt:
+           name:
+             - docker-ce
+             - docker-ce-cli
+             - containerd.io
+             - docker-compose-plugin
+           state: latest
+           update_cache: true
+
+
+    -   name: 'start and enable Docker service'
+        service:
+          name: docker
+          state: started
+          enabled: yes
+
+  handlers:
+    - name: restart docker
+      service:
+        name: docker
+        state: restarted
+
+- name: 'run image on docker container'
+  become: true
+  hosts: localhost
+  tasks:
+    - name: 'run image nginxdemos/hello and map port 9090 to container 80 port'
+      docker_container:
+        name: nginxdemos-hello
+        image: "nginxdemos/hello:latest"
+        state: started
+        auto_remove: true
+        pull: yes
+        ports:
+          - "9090:80"
