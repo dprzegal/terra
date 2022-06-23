@@ -70,10 +70,11 @@ resource "aws_instance" "bastion_host" {
   key_name      = "${aws_key_pair.generated_key.key_name}"
   vpc_security_group_ids =  [aws_security_group.sg_bastion_host.id]
   subnet_id = aws_subnet.main-public-1.id
+  associate_public_ip_address = true
   iam_instance_profile = "${aws_iam_instance_profile.s3-mybucket-role-instanceprofile.name}"
   #user_data = "#!/bin/bash\n"
   user_data = <<EOF
-	  #! /bin/bash
+    #! /bin/bash
     sudo apt-get update
     sudo apt-get install python3-pip -y
     sudo curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
